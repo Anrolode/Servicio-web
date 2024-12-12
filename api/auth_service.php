@@ -16,16 +16,23 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 if (isset($data["usuario"]) && isset($data["password"])) {
     $usuario = $data["usuario"];
-    $password = password_hash($data["password"], PASSWORD_BCRYPT);
+    $password = $data["password"];
 
-    $sql = "INSERT INTO usuarios (usuario, password) VALUES (?, ?)";
+    $sql = "SELECT password FROM usuarios WHERE usuario = ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ss", $usuario, $password);
+    $stmt->bind_param("s", $usuario);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-    if ($stmt->execute()) {
-        echo json_encode(["message" => "Usuario registrado con éxito"]);
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        if (password_verify($password, $row["password"])) {
+            echo json_encode(["message" => "Autenticación satisfactoria"]);
+        } else {
+            echo json_encode(["error" => "Error en la autenticación"]);
+        }
     } else {
-        echo json_encode(["error" => "Error al registrar el usuario: " . $conn->error]);
+        echo json_encode(["error" => "Usuario no encontrado"]);
     }
 } else {
     echo json_encode(["error" => "Datos incompletos"]);
